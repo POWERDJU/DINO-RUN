@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <title>공룡 달리기</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#333333">
+    <meta name="description" content="티라노사우루스와 트리케라톱스 달리기 게임">
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="공룡게임">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #222;
+            text-align: center;
+            overflow: hidden;
+            touch-action: none;
+            /* 모바일 터치 확대 방지 */
+        }
+
+        #game-container {
+            position: relative;
+            margin: 0 auto;
+            width: 100%;
+            max-width: 450px;
+            height: 100vh;
+            background: #333;
+        }
+
+        /* 캔버스 설정 */
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI: 점수판 */
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 0 #000;
+            pointer-events: none;
+            z-index: 50;
+            text-align: left;
+        }
+
+        /* 시작 화면 */
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            color: white;
+        }
+
+        /* 클리어/게임오버 화면 */
+        #result-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            color: white;
+        }
+
+        #result-screen img {
+            max-width: 90%;
+            max-height: 60%;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        #result-screen h2 {
+            font-size: 36px;
+            margin: 10px 0;
+        }
+
+        button {
+            width: 220px;
+            padding: 15px;
+            margin: 10px;
+            font-size: 24px;
+            font-weight: bold;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #000;
+        }
+
+        button:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        /* 오디오 컨트롤 버튼 */
+        #audio-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            padding: 0;
+            font-size: 28px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            cursor: pointer;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            z-index: 60;
+            transition: all 0.3s ease;
+        }
+
+        #audio-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        #audio-toggle:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="game-container">
+        <div id="ui">
+            LV <span id="lv" style="color:yellow">1</span> <small>(목표:<span id="goal">1</span>)</small><br>
+            점수 <span id="sc">0</span><br>
+            <span id="lives" style="font-size:24px;">💚💚💚</span>
+        </div>
+
+        <button id="audio-toggle" onclick="toggleAudio()" title="배경음악 켜기/끄기">🔊</button>
+
+        <canvas id="cvs"></canvas>
+
+        <div id="start-screen">
+            <h1>🦖 공룡 달리기</h1>
+
+            <div style="color:#ddd; font-size:13px; margin-bottom:25px; line-height:1.8; max-width:320px;">
+                <div style="margin-bottom:15px;">
+                    <strong style="color:#FF6347;">🦖 티라노사우루스</strong><br>
+                    먹어: 🍖🐟 +1점 | 못먹어: 🍎🥦🦴 레벨-1
+                </div>
+                <div style="margin-bottom:15px;">
+                    <strong style="color:#32CD32;">🦕 트리케라톱스</strong><br>
+                    먹어: 🍎🥦 +1점 | 못먹어: 🍖🐟🦴 레벨-1
+                </div>
+                <div style="margin-bottom:10px; color:#FFA500;">
+                    <strong>🌋 화산</strong>: 3번 충돌 시 게임오버
+                </div>
+                <div style="color:#888; font-size:11px;">
+                    먹이 놓치면 -1점 | -3점 또는 레벨 0이면 게임오버
+                </div>
+            </div>
+
+            <button style="background:#FF6347; color:white;" onclick="startGame('trex')">티라노 시작</button>
+            <button style="background:#32CD32; color:white;" onclick="startGame('trikeratops')">트리케라톱스 시작</button>
+        </div>
+
+        <div id="result-screen">
+            <h2 id="result-title"></h2>
+            <img id="result-image" src="" alt="결과 이미지" style="display:none;">
+            <button style="background:#4CAF50; color:white;" onclick="goToStart()">처음으로</button>
+        </div>
+    </div>
+
+    <script>
+        const cvs = document.getElementById('cvs');
+        const ctx = cvs.getContext('2d');
+
+        // [핵심] 화면 해상도에 맞춰 캔버스를 선명하게 조정 (HiDPI)
+        function resize() {
+            const container = document.getElementById('game-container');
+            const dpr = window.devicePixelRatio || 1;
+
+            // 컨테이너 크기 가져오기
+            const rect = container.getBoundingClientRect();
+
+            // 캔버스 픽셀을 DPR만큼 뻥튀기 (선명도 UP)
+            cvs.width = rect.width * dpr;
+            cvs.height = rect.height * dpr;
+
+            // 그리기 좌표계 확대
+            ctx.scale(dpr, dpr);
+        }
+        window.addEventListener('resize', resize);
+        setTimeout(resize, 100);
+
+        // [배경 이미지]
+        const bgImg = new Image();
+        bgImg.src = 'bg.png';
+        let bgScrollY = 0; // 배경 스크롤 오프셋
+
+
+        // [티라노 스프라이트 시트]
+        const tyranoSprite = new Image();
+        tyranoSprite.src = 'tyrano.PNG';
+        let processedTyranoSprite = null; // 전처리된 스프라이트
+
+        // [트리케라톱스 스프라이트 시트]
+        const trikeratopsSprite = new Image();
+        trikeratopsSprite.src = 'trikeratops.PNG';
+        let processedTrikeratopsSprite = null; // 전처리된 스프라이트
+
+        // 이미지 로드 후 격자무늬 제거 전처리
+        tyranoSprite.onload = function () {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = tyranoSprite.naturalWidth;
+            tempCanvas.height = tyranoSprite.naturalHeight;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            // 원본 이미지 그리기
+            tempCtx.drawImage(tyranoSprite, 0, 0);
+
+            // 이미지 데이터 가져오기
+            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+            const data = imageData.data;
+
+            // 공룡(녹색 계열)이 아닌 모든 픽셀을 투명하게 처리
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const a = data[i + 3];
+
+                // 이미 투명한 픽셀은 그대로 유지
+                if (a < 10) continue;
+
+                // 녹색 계열인지 확인 (공룡)
+                // 녹색이 다른 색상보다 우세하고, 일정 수준 이상의 녹색 값을 가짐
+                const isGreen = (g > r + 20 && g > b + 20 && g > 50);
+
+                // 녹색이 아니면 투명하게
+                if (!isGreen) {
+                    data[i + 3] = 0; // 완전 투명
+                }
+            }
+
+            // 수정된 이미지 데이터 적용
+            tempCtx.putImageData(imageData, 0, 0);
+
+            // 새 이미지로 저장
+            processedTyranoSprite = new Image();
+            processedTyranoSprite.src = tempCanvas.toDataURL();
+        };
+
+        // 트리케라톱스 이미지 전처리
+        trikeratopsSprite.onload = function () {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = trikeratopsSprite.naturalWidth;
+            tempCanvas.height = trikeratopsSprite.naturalHeight;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            // 원본 이미지 그리기
+            tempCtx.drawImage(trikeratopsSprite, 0, 0);
+
+            // 이미지 데이터 가져오기
+            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+            const data = imageData.data;
+
+            // 공룡(녹색 계열)이 아닌 모든 픽셀을 투명하게 처리
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const a = data[i + 3];
+
+                // 이미 투명한 픽셀은 그대로 유지
+                if (a < 10) continue;
+
+                // 녹색 계열인지 확인 (공룡)
+                const isGreen = (g > r + 20 && g > b + 20 && g > 50);
+
+                // 녹색이 아니면 투명하게
+                if (!isGreen) {
+                    data[i + 3] = 0; // 완전 투명
+                }
+            }
+
+            // 수정된 이미지 데이터 적용
+            tempCtx.putImageData(imageData, 0, 0);
+
+            // 새 이미지로 저장
+            processedTrikeratopsSprite = new Image();
+            processedTrikeratopsSprite.src = tempCanvas.toDataURL();
+        };
+
+
+        // ============= 오디오 시스템 =============
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+        let isMuted = false;
+        let bgMusicOscillator = null;
+        let bgMusicGain = null;
+
+        // 배경음악 시작
+        function startBackgroundMusic() {
+            if (bgMusicOscillator) return; // 이미 재생 중
+
+            try {
+                // 메인 멜로디 (삼각파 - 부드러운 사운드)
+                bgMusicOscillator = audioCtx.createOscillator();
+                bgMusicGain = audioCtx.createGain();
+
+                bgMusicOscillator.type = 'triangle';
+                bgMusicOscillator.frequency.value = 262; // C4 음
+                bgMusicGain.gain.value = 0.03; // 배경음악이므로 작게
+
+                // LFO (저주파 진동자)로 음높이 변조 - 역동적인 느낌
+                const lfo = audioCtx.createOscillator();
+                const lfoGain = audioCtx.createGain();
+                lfo.type = 'sine';
+                lfo.frequency.value = 0.5; // 천천히 변화
+                lfoGain.gain.value = 10; // 변조 깊이
+
+                lfo.connect(lfoGain);
+                lfoGain.connect(bgMusicOscillator.frequency);
+
+                bgMusicOscillator.connect(bgMusicGain);
+                bgMusicGain.connect(audioCtx.destination);
+
+                lfo.start();
+                bgMusicOscillator.start();
+
+                // 추가 리듬 레이어
+                createRhythmLayer();
+            } catch (e) {
+                console.log('오디오 시작 실패:', e);
+            }
+        }
+
+        // 리듬 레이어 (게임 느낌)
+        function createRhythmLayer() {
+            let time = audioCtx.currentTime;
+            const interval = 0.5; // 0.5초마다
+
+            function scheduleRhythm() {
+                if (!bgMusicOscillator || isMuted) return;
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'square';
+                osc.frequency.value = 131; // C3 베이스
+                gain.gain.value = 0.015;
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(time);
+                osc.stop(time + 0.1);
+
+                time += interval;
+                setTimeout(scheduleRhythm, interval * 1000);
+            }
+
+            scheduleRhythm();
+        }
+
+        // 배경음악 정지
+        function stopBackgroundMusic() {
+            if (bgMusicOscillator) {
+                try {
+                    bgMusicOscillator.stop();
+                    bgMusicOscillator.disconnect();
+                } catch (e) { }
+                bgMusicOscillator = null;
+                bgMusicGain = null;
+            }
+        }
+
+        // 효과음: 아이템 획득 (좋은 아이템)
+        function playGoodSound() {
+            if (isMuted) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(523, audioCtx.currentTime); // C5
+            osc.frequency.exponentialRampToValueAtTime(784, audioCtx.currentTime + 0.1); // G5
+
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+
+        // 효과음: 나쁜 아이템
+        function playBadSound() {
+            if (isMuted) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.15);
+
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+
+        // 효과음: 레벨업
+        function playLevelUpSound() {
+            if (isMuted) return;
+            const notes = [262, 330, 392, 523]; // C-E-G-C 코드
+            notes.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+
+                const startTime = audioCtx.currentTime + i * 0.1;
+                gain.gain.setValueAtTime(0.15, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(startTime);
+                osc.stop(startTime + 0.3);
+            });
+        }
+
+        // 효과음: 게임 오버
+        function playGameOverSound() {
+            if (isMuted) return;
+            const notes = [392, 349, 330, 294, 262]; // G-F-E-D-C (하강)
+            notes.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.value = freq;
+
+                const startTime = audioCtx.currentTime + i * 0.15;
+                gain.gain.setValueAtTime(0.2, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.4);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(startTime);
+                osc.stop(startTime + 0.4);
+            });
+        }
+
+        // 효과음: 승리
+        function playVictorySound() {
+            if (isMuted) return;
+            const melody = [523, 587, 659, 784, 880]; // C-D-E-G-A (상승)
+            melody.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+
+                const startTime = audioCtx.currentTime + i * 0.12;
+                gain.gain.setValueAtTime(0.25, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.5);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(startTime);
+                osc.stop(startTime + 0.5);
+            });
+        }
+
+        // 오디오 토글
+        window.toggleAudio = function () {
+            isMuted = !isMuted;
+            const btn = document.getElementById('audio-toggle');
+
+            if (isMuted) {
+                btn.textContent = '🔇';
+                stopBackgroundMusic();
+            } else {
+                btn.textContent = '🔊';
+                if (gameState === 'RUN') {
+                    audioCtx.resume().then(() => startBackgroundMusic());
+                }
+            }
+        };
+
+        // 처음으로 돌아가기
+        window.goToStart = function () {
+            if (gameLoop) clearInterval(gameLoop);
+            gameState = 'STOP';
+            stopBackgroundMusic();
+
+            document.getElementById('result-screen').style.display = 'none';
+            document.getElementById('start-screen').style.display = 'flex';
+        };
+
+        // 결과 화면 표시
+        function showResultScreen(isVictory, dinoType) {
+            if (gameLoop) clearInterval(gameLoop);
+            gameState = 'STOP';
+
+            const resultScreen = document.getElementById('result-screen');
+            const resultTitle = document.getElementById('result-title');
+            const resultImage = document.getElementById('result-image');
+
+            if (isVictory) {
+                resultTitle.textContent = '🎉 축하합니다! 클리어! 🎉';
+
+                // 성공 이미지 표시
+                if (dinoType === 'trex') {
+                    resultImage.src = 'tyrano_success.jpg';
+                } else if (dinoType === 'trikeratops') {
+                    resultImage.src = 'trikera_success.PNG';
+                }
+
+                // 이미지 로드 결과에 따라 표시
+                resultImage.onload = function () {
+                    resultImage.style.display = 'block';
+                };
+                resultImage.onerror = function () {
+                    resultImage.style.display = 'none';
+                    console.log('성공 이미지를 찾을 수 없습니다: ' + resultImage.src);
+                };
+            } else {
+                resultTitle.textContent = '😭 게임 오버! 😭';
+
+                // 실패 이미지 표시
+                if (dinoType === 'trex') {
+                    resultImage.src = 'tyrano_failure.jpg';
+                } else if (dinoType === 'trikeratops') {
+                    resultImage.src = 'trikera_failure.PNG';
+                }
+
+                // 이미지 로드 결과에 따라 표시
+                resultImage.onload = function () {
+                    resultImage.style.display = 'block';
+                };
+                resultImage.onerror = function () {
+                    resultImage.style.display = 'none';
+                    console.log('실패 이미지를 찾을 수 없습니다: ' + resultImage.src);
+                };
+            }
+
+            resultScreen.style.display = 'flex';
+        }
+
+        // 게임 변수
+        let gameLoop = null;
+        let gameState = "STOP";
+        let dino = { x: 0, type: 'trex' };
+        let score = 0, level = 1, frame = 0;
+        let items = [];
+        let volcanoes = []; // 화산 배열
+        let volcanoHits = 0; // 화산 충돌 횟수
+
+        const goals = [1, 2, 3, 4, 5, 6, 7, 999];
+        const itemTypes = [
+            { t: 'm', i: '🍖' }, { t: 'm', i: '🐟' },
+            { t: 'p', i: '🍎' }, { t: 'p', i: '🥦' },
+            { t: 'b', i: '🦴' }
+        ];
+
+        // 입력 처리
+        let move = { l: false, r: false };
+        document.addEventListener('keydown', e => {
+            if (e.key === 'ArrowLeft') move.l = true;
+            if (e.key === 'ArrowRight') move.r = true;
+        });
+        document.addEventListener('keyup', () => { move.l = false; move.r = false; });
+
+        function handleInput(e) {
+            e.preventDefault();
+            const rect = cvs.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            // DPR 보정 전 좌표 계산
+            const x = clientX - rect.left;
+
+            if (x < rect.width / 2) { move.l = true; move.r = false; }
+            else { move.r = true; move.l = false; }
+        }
+        function stopInput() { move.l = false; move.r = false; }
+
+        cvs.addEventListener('mousedown', handleInput);
+        cvs.addEventListener('touchstart', handleInput, { passive: false });
+        cvs.addEventListener('mouseup', stopInput);
+        cvs.addEventListener('touchend', stopInput);
+
+        // 게임 시작
+        window.startGame = function (type) {
+            resize(); // 해상도 재조정
+            const rect = document.getElementById('game-container').getBoundingClientRect();
+            dino.type = type;
+            dino.x = rect.width / 2;
+            score = 0; level = 1; items = []; frame = 0;
+            volcanoes = []; volcanoHits = 0; // 화산 초기화
+            bgScrollY = 0; // 배경 스크롤 초기화
+            gameState = "RUN";
+            document.getElementById('start-screen').style.display = 'none';
+
+            if (gameLoop) clearInterval(gameLoop);
+            gameLoop = setInterval(loop, 20);
+
+            // 배경음악 시작
+            if (!isMuted) {
+                audioCtx.resume().then(() => startBackgroundMusic());
+            }
+        };
+
+        // 메인 루프
+        function loop() {
+            if (gameState !== "RUN") return;
+
+            const rect = document.getElementById('game-container').getBoundingClientRect();
+            const w = rect.width;
+            const h = rect.height;
+
+
+            // [캔버스 초기화 - 이전 프레임 지우기]
+            ctx.clearRect(0, 0, w, h);
+
+            // [배경 그리기 - 스크롤링]
+            // 투명도 초기화 (배경은 선명하게)
+            ctx.globalAlpha = 1.0;
+
+
+            if (bgImg.complete && bgImg.naturalWidth !== 0) {
+                try {
+                    // 배경을 아이템과 같은 속도로 위로 스크롤 (공룡이 앞으로 달리는 효과)
+                    const scrollSpeed = 3 + level;
+                    bgScrollY += scrollSpeed;
+
+                    // 배경 이미지의 실제 높이
+                    const bgHeight = bgImg.naturalHeight;
+
+                    // 화면 높이에 맞춰 배경을 그리기 위한 스케일 계산
+                    const scale = w / bgImg.naturalWidth;
+                    const scaledBgHeight = bgHeight * scale;
+
+                    // bgScrollY를 배경 높이로 나눈 나머지로 무한 루프 구현
+                    const scrollOffset = bgScrollY % scaledBgHeight;
+
+                    // 배경을 두 번 그려서 이음새 없는 스크롤 구현
+                    // 첫 번째 타일
+                    ctx.drawImage(bgImg, 0, scrollOffset, w, scaledBgHeight);
+
+                    // 두 번째 타일 (첫 번째 타일 바로 위에 배치)
+                    ctx.drawImage(bgImg, 0, scrollOffset - scaledBgHeight, w, scaledBgHeight);
+
+                } catch (e) { drawDefaultBg(w, h); }
+            } else {
+                drawDefaultBg(w, h);
+            }
+
+            // [이동]
+            const speed = 4 + level;
+            if (move.l && dino.x > 30) dino.x -= speed;
+            if (move.r && dino.x < w - 30) dino.x += speed;
+
+            // [공룡 그리기] - 여기가 핵심 수정 부분!
+            drawDinoEmoji(h);
+
+            // [아이템]
+            handleItems(w, h);
+
+            // [화산]
+            handleVolcanoes(w, h);
+
+            // [UI]
+            document.getElementById('lv').innerText = level;
+            document.getElementById('sc').innerText = score;
+            document.getElementById('goal').innerText = (level > 7) ? "-" : goals[level - 1];
+            // 라이프 표시 업데이트 (3 - 충돌횟수)
+            const remainingLives = 3 - volcanoHits;
+            let livesDisplay = '';
+            for (let i = 0; i < remainingLives; i++) {
+                livesDisplay += '💚';
+            }
+            document.getElementById('lives').innerText = livesDisplay;
+        }
+
+        function drawDefaultBg(w, h) {
+            const g = ctx.createLinearGradient(0, 0, w, 0);
+            g.addColorStop(0, "#2E7D32"); g.addColorStop(0.3, "#8D6E63");
+            g.addColorStop(0.7, "#8D6E63"); g.addColorStop(1, "#2E7D32");
+            ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+        }
+
+        // ★★★ 공룡 그리기 (스프라이트 + 애니메이션) ★★★
+        function drawDinoEmoji(h) {
+            frame++;
+
+            // 티라노사우루스 모드: 스프라이트 사용
+            if (dino.type === 'trex') {
+                const spriteToUse = processedTyranoSprite || tyranoSprite;
+                if (spriteToUse && spriteToUse.complete && spriteToUse.naturalWidth !== 0) {
+                    drawTyranoSprite(h, spriteToUse);
+                } else {
+                    drawDinoEmojiClassic(h);
+                }
+            }
+            // 트리케라톱스 모드: 스프라이트 사용
+            else if (dino.type === 'trikeratops') {
+                const spriteToUse = processedTrikeratopsSprite || trikeratopsSprite;
+                if (spriteToUse && spriteToUse.complete && spriteToUse.naturalWidth !== 0) {
+                    drawTrikeratopsSprite(h, spriteToUse);
+                } else {
+                    drawDinoEmojiClassic(h);
+                }
+            }
+            // 기타: 기존 이모지 사용
+            else {
+                drawDinoEmojiClassic(h);
+            }
+        }
+
+        // 티라노사우루스 스프라이트 렌더링 (애니메이션 포함)
+        function drawTyranoSprite(h, sprite) {
+            // sprite 파라미터가 없으면 원본 사용
+            const spriteToRender = sprite || tyranoSprite;
+
+            // tyrano.PNG는 7마리의 공룡이 가로로 나열됨
+            const spriteWidth = spriteToRender.naturalWidth / 7;
+            const spriteHeight = spriteToRender.naturalHeight;
+
+            // 현재 레벨에 맞는 공룡 선택 (레벨 1~7)
+            const dinoIndex = Math.min(level, 7) - 1;
+            const srcX = dinoIndex * spriteWidth;
+
+
+            // 애니메이션 타이밍
+            const walkSpeed = 0.2; // 걷기 속도
+            const time = frame * walkSpeed;
+
+            // 발 움직임 - 상하로 뚜벅뚜벅 (사인파로 부드러운 걸음)
+            const legStep = Math.sin(time * 2) * 6; // 발이 땅을 밟는 효과
+
+            // 몸통 전체의 미세한 상하 움직임 (걸을 때 자연스러운 효과)
+            const bodyBob = Math.abs(Math.sin(time)) * 3;
+
+            // 머리 흔들기 - 걸을 때 앞뒤로 살짝 움직임
+            const headSway = Math.sin(time * 1.3) * 0.04;
+
+            // 꼬리 흔들기 - 좌우로 흔들리는 효과 (머리와 반대 방향)
+            const tailSway = Math.sin(time * 0.9 + Math.PI) * 0.06;
+
+
+            ctx.save();
+            ctx.globalAlpha = 1.0;
+
+            // 공룡 위치 (발 움직임에 따른 상하 이동)
+            const dinoY = h - 120;
+            ctx.translate(dino.x, dinoY + bodyBob + legStep);
+
+            // 발 밑 그림자 (발 움직임과 연동)
+            ctx.save();
+            ctx.fillStyle = "black";
+            ctx.beginPath();
+            const shadowWidth = 40 + (level * 3);
+            // 그림자는 발이 땅에 닿을 때 더 진하고 넓어짐
+            const shadowIntensity = 1 - (Math.abs(legStep) / 10);
+            ctx.globalAlpha = 0.2 + (shadowIntensity * 0.15);
+            ctx.ellipse(0, 70 - bodyBob - legStep, shadowWidth * (0.8 + shadowIntensity * 0.2), 12, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // 공룡 크기 (레벨에 따라 증가)
+            const baseSize = 100 + (level * 8);
+            const dinoWidth = baseSize;
+            const dinoHeight = baseSize * (spriteHeight / spriteWidth);
+
+
+            // 복합 변형: 머리는 앞뒤, 꼬리는 좌우
+            // 전체적인 미세한 기울기 (걸을 때 자연스러움)
+            ctx.rotate(headSway + (tailSway * 0.5));
+
+
+
+            // 공룡 스프라이트 그리기 (투명 배경 보장)
+            try {
+                // 투명 배경 처리를 위한 설정
+                ctx.globalCompositeOperation = 'source-over'; // 기본값이지만 명시적으로 설정
+                ctx.imageSmoothingEnabled = true; // 부드러운 렌더링
+
+                ctx.drawImage(
+                    spriteToRender,
+                    srcX, 0, spriteWidth, spriteHeight,  // 소스 영역
+                    -dinoWidth / 2, -dinoHeight / 2, dinoWidth, dinoHeight  // 대상 영역
+                );
+            } catch (e) {
+                console.error('티라노 스프라이트 렌더링 오류:', e);
+            }
+
+            ctx.restore();
+        }
+
+        // 트리케라톱스 스프라이트 렌더링 (엉금엉금 움직이는 애니메이션)
+        function drawTrikeratopsSprite(h, sprite) {
+            const spriteToRender = sprite || trikeratopsSprite;
+
+            // trikeratops.PNG는 7마리의 공룡이 가로로 나열됨
+            const spriteWidth = spriteToRender.naturalWidth / 7;
+            const spriteHeight = spriteToRender.naturalHeight;
+
+            // 현재 레벨에 맞는 공룡 선택 (레벨 1~7)
+            const dinoIndex = Math.min(level, 7) - 1;
+            const srcX = dinoIndex * spriteWidth;
+
+            // 애니메이션 타이밍 (티라노보다 느리게)
+            const walkSpeed = 0.12; // 느린 엉금엉금 속도
+            const time = frame * walkSpeed;
+
+            // 엉금엉금 움직임 - 좌우로 천천히 흔들림
+            const waddle = Math.sin(time * 1.5) * 4; // 좌우 흔들림
+
+            // 몸통 전체의 천천히 상하 움직임 (낮게 엎드려 움직이는 느낌)
+            const bodyBob = Math.abs(Math.sin(time * 0.8)) * 2;
+
+            // 머리 흔들기 - 좌우로 천천히 (엉금엉금 기어가는 느낌)
+            const headSway = Math.sin(time * 1.2) * 0.06;
+
+            // 꼬리는 거의 움직이지 않음 (트리케라톱스는 꼬리가 짧고 무거움)
+            const tailSway = Math.sin(time * 0.5) * 0.02;
+
+            ctx.save();
+            ctx.globalAlpha = 1.0;
+
+            // 공룡 위치
+            const dinoY = h - 120;
+            ctx.translate(dino.x + waddle, dinoY + bodyBob);
+
+            // 발 밑 그림자 (넓고 진한 그림자 - 무거운 느낌)
+            ctx.save();
+            ctx.fillStyle = "black";
+            ctx.beginPath();
+            const shadowWidth = 50 + (level * 3);
+            ctx.globalAlpha = 0.25; // 티라노보다 진한 그림자
+            ctx.ellipse(0, 70 - bodyBob, shadowWidth, 14, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // 공룡 크기 (레벨에 따라 증가)
+            const baseSize = 100 + (level * 8);
+            const dinoWidth = baseSize;
+            const dinoHeight = baseSize * (spriteHeight / spriteWidth);
+
+            // 복합 변형: 좌우 흔들림 강조
+            ctx.rotate(headSway + (tailSway * 0.5));
+
+            // 공룡 스프라이트 그리기
+            try {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.imageSmoothingEnabled = true;
+
+                ctx.drawImage(
+                    spriteToRender,
+                    srcX, 0, spriteWidth, spriteHeight,  // 소스 영역
+                    -dinoWidth / 2, -dinoHeight / 2, dinoWidth, dinoHeight  // 대상 영역
+                );
+            } catch (e) {
+                console.error('트리케라톱스 스프라이트 렌더링 오류:', e);
+            }
+
+            ctx.restore();
+        }
+
+        // 기존 이모지 렌더링 (브라키오사우루스용)
+        function drawDinoEmojiClassic(h) {
+            // 애니메이션
+            const bob = Math.sin(frame * 0.2) * 10;
+            const rot = Math.sin(frame * 0.2) * 0.1;
+
+            ctx.save();
+
+            // [수정] 강제로 불투명하게 설정 (투명도 0% = 완전 진함)
+            ctx.globalAlpha = 1.0;
+
+            // 위치 이동
+            ctx.translate(dino.x, h - 100 + bob);
+            ctx.rotate(rot);
+
+            // 발 밑 그림자 (이것만 약간 투명하게)
+            ctx.save();
+            ctx.globalAlpha = 0.3;
+            ctx.fillStyle = "black";
+            ctx.beginPath();
+            ctx.ellipse(0, 40 - bob, 30 + (level * 2), 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore(); // 그림자 투명도 끝
+
+            // [수정] 이모지 그리기 (그림자 효과 제거하여 선명도 UP)
+            const size = 70 + (level * 10);
+            ctx.font = "bold " + size + "px Arial, sans-serif"; // 굵은 폰트
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+
+            const emoji = (dino.type === 'trex') ? '🦖' : '🦕';
+
+            // 1. 검은색 외곽선 (진하게 보이기용)
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = "black";
+            ctx.strokeText(emoji, 0, 0);
+
+            // 2. 이모지 본체 (불투명)
+            ctx.fillStyle = "white"; // 이모지 색상 보정을 위해 흰색 베이스 깔기 (일부 브라우저용)
+            ctx.fillText(emoji, 0, 0);
+
+            ctx.restore();
+        }
+
+        function handleItems(w, h) {
+            // 발생 빈도 1.5배 증가 (60 -> 40)
+            if (frame % (40 - level * 2) === 0) {
+                const r = Math.floor(Math.random() * 5);
+                items.push({ x: Math.random() * (w - 60) + 30, y: -50, d: itemTypes[r] });
+            }
+
+            for (let i = 0; i < items.length; i++) {
+                items[i].y += (3 + level);
+
+                // 아이템이 화면 밖으로 나갔는지 체크
+                if (items[i].y > h + 50) {
+                    // 득점아이템을 놓쳤으면 -1점
+                    let isGoodItem = false;
+                    if (dino.type === 'trex' && items[i].d.t === 'm') isGoodItem = true;
+                    if (dino.type === 'trikeratops' && items[i].d.t === 'p') isGoodItem = true;
+
+                    if (isGoodItem) {
+                        score--;
+                        // 놓친 경우는 효과음 없음 (조용히 점수만 감소)
+                    }
+
+                    items.splice(i, 1);
+                    i--;
+                    continue;
+                }
+
+                // 아이템 그리기 (역시 진하게)
+                ctx.globalAlpha = 1.0;
+                ctx.font = "40px Arial"; ctx.textAlign = "center";
+                ctx.fillStyle = "black";
+                ctx.fillText(items[i].d.i, items[i].x, items[i].y);
+
+                // 충돌 체크
+                const dist = Math.abs(dino.x - items[i].x) + Math.abs((h - 100) - items[i].y);
+                if (dist < 60) {
+                    let good = false;
+                    if (dino.type === 'trex' && items[i].d.t === 'm') good = true;
+                    if (dino.type === 'trikeratops' && items[i].d.t === 'p') good = true;
+
+                    if (good) {
+                        // 득점아이템 먹음: +1점
+                        score++;
+                        playGoodSound();
+                    } else {
+                        // 실점아이템 먹음: 레벨 -1 (점수는 변화 없음)
+                        level--;
+                        playBadSound();
+
+                        // 레벨이 0 이하로 떨어지면 게임오버
+                        if (level <= 0) {
+                            playGameOverSound();
+                            stopBackgroundMusic();
+                            setTimeout(() => {
+                                showResultScreen(false, dino.type);
+                            }, 800);
+                        }
+                    }
+                    items.splice(i, 1);
+                    i--;
+
+                    // 점수가 -3 이하면 게임오버
+                    if (score <= -3) {
+                        playGameOverSound();
+                        stopBackgroundMusic();
+                        setTimeout(() => {
+                            showResultScreen(false, dino.type);
+                        }, 800);
+                    }
+
+                    // 목표 점수 달성하면 레벨업
+                    if (score >= goals[level - 1]) {
+                        level++;
+                        score = 0;
+                        if (level > 7) {
+                            playVictorySound();
+                            stopBackgroundMusic();
+                            setTimeout(() => {
+                                showResultScreen(true, dino.type);
+                            }, 1000);
+                        } else {
+                            playLevelUpSound();
+                        }
+                    }
+                }
+            }
+        }
+
+        // 화산 처리 함수
+        function handleVolcanoes(w, h) {
+            // 화산 생성 빈도 1.5배 증가 (120 -> 80)
+            if (frame % (80 - level * 3) === 0) {
+                volcanoes.push({ x: Math.random() * (w - 80) + 40, y: -60 });
+            }
+
+            for (let i = 0; i < volcanoes.length; i++) {
+                // 배경 스크롤과 동일한 속도로 이동 (정지해 보이도록)
+                volcanoes[i].y += (3 + level);
+
+                // 화산이 화면 밖으로 나갔으면 제거
+                if (volcanoes[i].y > h + 60) {
+                    volcanoes.splice(i, 1);
+                    i--;
+                    continue;
+                }
+
+                // 화산 그리기
+                ctx.globalAlpha = 1.0;
+                ctx.font = "70px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText('🌋', volcanoes[i].x, volcanoes[i].y);
+
+                // 충돌 체크
+                const dist = Math.abs(dino.x - volcanoes[i].x) + Math.abs((h - 100) - volcanoes[i].y);
+                if (dist < 70) { // 화산 크기 70px에 맞게 조정
+                    volcanoHits++;
+                    playBadSound(); // 충돌 효과음
+
+                    volcanoes.splice(i, 1);
+                    i--;
+
+                    // 3번 충돌하면 게임오버
+                    if (volcanoHits >= 3) {
+                        playGameOverSound();
+                        stopBackgroundMusic();
+                        setTimeout(() => {
+                            showResultScreen(false, dino.type);
+                        }, 800);
+                    }
+                }
+            }
+        }
+    </script>
+
+    <script>
+        // Service Worker 등록 (PWA 기능)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('Service Worker 등록 성공:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('Service Worker 등록 실패:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+
+</html>

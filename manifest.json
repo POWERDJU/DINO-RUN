@@ -1,0 +1,24 @@
+{
+  "name": "공룡 달리기",
+  "short_name": "공룡게임",
+  "description": "티라노사우루스와 트리케라톱스 달리기 게임",
+  "start_url": "dino_run.html",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#222222",
+  "theme_color": "#333333",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
