@@ -151,6 +151,7 @@
         <div id="ui">
             LV <span id="lv" style="color:yellow">1</span> <small>(목표:<span id="goal">1</span>)</small><br>
             점수 <span id="sc">0</span><br>
+            시간 <span id="time" style="color:#00FF00">0:00.0</span><br>
             <span id="lives" style="font-size:24px;">💚💚💚</span>
         </div>
 
@@ -185,6 +186,7 @@
         <div id="result-screen">
             <h2 id="result-title"></h2>
             <img id="result-image" src="" alt="결과 이미지" style="display:none;">
+            <p id="result-time" style="font-size:28px; color:#FFD700; margin:15px 0; font-weight:bold;"></p>
             <button style="background:#4CAF50; color:white;" onclick="goToStart()">처음으로</button>
         </div>
     </div>
@@ -227,17 +229,65 @@
         trikeratopsSprite.src = 'trikeratops.png';
         let processedTrikeratopsSprite = null; // 전처리된 스프라이트
 
+        // 이미지 로딩 상태 추적
+        let imagesLoaded = {
+            tyrano: false,
+            trikeratops: false,
+            bg: false
+        };
+
+        function checkAllImagesLoaded() {
+            const allLoaded = imagesLoaded.tyrano && imagesLoaded.trikeratops;
+            if (allLoaded) {
+                // 모든 이미지 로드 완료 - 버튼 활성화
+                const buttons = document.querySelectorAll('#start-screen button');
+                buttons.forEach(btn => {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                });
+            }
+        }
+
+        // 안전장치: 2초 후에는 이미지 로드 여부와 관계없이 버튼 활성화
+        setTimeout(() => {
+            const buttons = document.querySelectorAll('#start-screen button');
+            buttons.forEach(btn => {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            });
+        }, 2000);
+
+        // 배경 이미지 로드
+        bgImg.onload = function () {
+            imagesLoaded.bg = true;
+        };
+        bgImg.onerror = function () {
+            imagesLoaded.bg = true; // 배경은 선택적이므로 실패해도 계속
+        };
+
         // 이미지 로드 후 격자무늬 제거 전처리
         // 주의: 전처리를 비활성화하고 원본 이미지 사용
         tyranoSprite.onload = function () {
             // 전처리 없이 원본 이미지 사용
             processedTyranoSprite = tyranoSprite;
+            imagesLoaded.tyrano = true;
+            checkAllImagesLoaded();
+        };
+        tyranoSprite.onerror = function () {
+            imagesLoaded.tyrano = true; // 로드 실패해도 계속
+            checkAllImagesLoaded();
         };
 
         // 트리케라톱스 이미지 전처리
         trikeratopsSprite.onload = function () {
             // 전처리 없이 원본 이미지 사용
             processedTrikeratopsSprite = trikeratopsSprite;
+            imagesLoaded.trikeratops = true;
+            checkAllImagesLoaded();
+        };
+        trikeratopsSprite.onerror = function () {
+            imagesLoaded.trikeratops = true; // 로드 실패해도 계속
+            checkAllImagesLoaded();
         };
 
 
@@ -467,9 +517,19 @@
             const resultScreen = document.getElementById('result-screen');
             const resultTitle = document.getElementById('result-title');
             const resultImage = document.getElementById('result-image');
+            const resultTime = document.getElementById('result-time');
+
+            // 최종 시간 계산
+            const totalSeconds = Math.floor(elapsedTime / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            const deciseconds = Math.floor((elapsedTime % 1000) / 100);
+            const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}.${deciseconds}`;
 
             if (isVictory) {
                 resultTitle.textContent = '🎉 축하합니다! 클리어! 🎉';
+                resultTime.textContent = `⏱️ 기록: ${timeString}`;
+                resultTime.style.display = 'block';
 
                 // 성공 이미지 표시
                 if (dinoType === 'trex') {
@@ -488,6 +548,8 @@
                 };
             } else {
                 resultTitle.textContent = '😭 게임 오버! 😭';
+                resultTime.textContent = `⏱️ 생존 시간: ${timeString}`;
+                resultTime.style.display = 'block';
 
                 // 실패 이미지 표시
                 if (dinoType === 'trex') {
@@ -517,6 +579,8 @@
         let items = [];
         let volcanoes = []; // 화산 배열
         let volcanoHits = 0; // 화산 충돌 횟수
+        let startTime = 0; // 게임 시작 시간
+        let elapsedTime = 0; // 경과 시간 (밀리초)
 
         const goals = [1, 2, 3, 4, 5, 6, 7, 999];
         const itemTypes = [
@@ -559,6 +623,12 @@
             score = 0; level = 1; items = []; frame = 0;
             volcanoes = []; volcanoHits = 0; // 화산 초기화
             bgScrollY = 0; // 배경 스크롤 초기화
+
+            // 타이머 초기화
+            startTime = Date.now();
+            elapsedTime = 0;
+            document.getElementById('time').innerText = '0:00.0';
+
             gameState = "RUN";
             document.getElementById('start-screen').style.display = 'none';
 
@@ -581,9 +651,8 @@
 
 
             // [캔버스 초기화 - 이전 프레임 지우기]
-            // clearRect 대신 fillRect로 배경을 완전히 채워서 잔상 제거
-            ctx.fillStyle = '#333'; // 어두운 회색 배경
-            ctx.fillRect(0, 0, w, h);
+            const dpr = window.devicePixelRatio || 1;
+            ctx.clearRect(0, 0, w, h);
 
             // [배경 그리기 - 스크롤링]
             // 투명도 초기화 (배경은 선명하게)
@@ -636,6 +705,15 @@
             document.getElementById('lv').innerText = level;
             document.getElementById('sc').innerText = score;
             document.getElementById('goal').innerText = (level > 7) ? "-" : goals[level - 1];
+
+            // 타이머 업데이트
+            elapsedTime = Date.now() - startTime;
+            const totalSeconds = Math.floor(elapsedTime / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            const deciseconds = Math.floor((elapsedTime % 1000) / 100);
+            document.getElementById('time').innerText = `${minutes}:${seconds.toString().padStart(2, '0')}.${deciseconds}`;
+
             // 라이프 표시 업데이트 (3 - 충돌횟수)
             const remainingLives = 3 - volcanoHits;
             let livesDisplay = '';
