@@ -475,7 +475,7 @@
                 if (dinoType === 'trex') {
                     resultImage.src = 'tyrano_success.jpg';
                 } else if (dinoType === 'trikeratops') {
-                    resultImage.src = 'trikera_success.PNG';
+                    resultImage.src = 'trikera_success.png';
                 }
 
                 // 이미지 로드 결과에 따라 표시
@@ -493,7 +493,7 @@
                 if (dinoType === 'trex') {
                     resultImage.src = 'tyrano_failure.jpg';
                 } else if (dinoType === 'trikeratops') {
-                    resultImage.src = 'trikera_failure.PNG';
+                    resultImage.src = 'trikera_failure.png';
                 }
 
                 // 이미지 로드 결과에 따라 표시
@@ -712,8 +712,8 @@
             ctx.save();
             ctx.globalAlpha = 1.0;
 
-            // 공룡 위치 (발 움직임에 따른 상하 이동)
-            const dinoY = h - 120;
+            // 공룡 위치 (발 움직임에 따른 상하 이동) - 모바일 하단 바 고려하여 위로 이동
+            const dinoY = h - 180;
             ctx.translate(dino.x, dinoY + bodyBob + legStep);
 
             // 발 밑 그림자 (발 움직임과 연동)
@@ -789,8 +789,8 @@
             ctx.save();
             ctx.globalAlpha = 1.0;
 
-            // 공룡 위치
-            const dinoY = h - 120;
+            // 공룡 위치 - 모바일 하단 바 고려하여 위로 이동
+            const dinoY = h - 180;
             ctx.translate(dino.x + waddle, dinoY + bodyBob);
 
             // 발 밑 그림자 (넓고 진한 그림자 - 무거운 느낌)
@@ -839,8 +839,8 @@
             // [수정] 강제로 불투명하게 설정 (투명도 0% = 완전 진함)
             ctx.globalAlpha = 1.0;
 
-            // 위치 이동
-            ctx.translate(dino.x, h - 100 + bob);
+            // 위치 이동 - 모바일 하단 바 고려하여 위로 이동
+            ctx.translate(dino.x, h - 160 + bob);
             ctx.rotate(rot);
 
             // 발 밑 그림자 (이것만 약간 투명하게)
