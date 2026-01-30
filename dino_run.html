@@ -228,86 +228,16 @@
         let processedTrikeratopsSprite = null; // 전처리된 스프라이트
 
         // 이미지 로드 후 격자무늬 제거 전처리
+        // 주의: 전처리를 비활성화하고 원본 이미지 사용
         tyranoSprite.onload = function () {
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = tyranoSprite.naturalWidth;
-            tempCanvas.height = tyranoSprite.naturalHeight;
-            const tempCtx = tempCanvas.getContext('2d');
-
-            // 원본 이미지 그리기
-            tempCtx.drawImage(tyranoSprite, 0, 0);
-
-            // 이미지 데이터 가져오기
-            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-            const data = imageData.data;
-
-            // 공룡(녹색 계열)이 아닌 모든 픽셀을 투명하게 처리
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
-                const a = data[i + 3];
-
-                // 이미 투명한 픽셀은 그대로 유지
-                if (a < 10) continue;
-
-                // 녹색 계열인지 확인 (공룡)
-                // 녹색이 다른 색상보다 우세하고, 일정 수준 이상의 녹색 값을 가짐
-                const isGreen = (g > r + 20 && g > b + 20 && g > 50);
-
-                // 녹색이 아니면 투명하게
-                if (!isGreen) {
-                    data[i + 3] = 0; // 완전 투명
-                }
-            }
-
-            // 수정된 이미지 데이터 적용
-            tempCtx.putImageData(imageData, 0, 0);
-
-            // 새 이미지로 저장
-            processedTyranoSprite = new Image();
-            processedTyranoSprite.src = tempCanvas.toDataURL();
+            // 전처리 없이 원본 이미지 사용
+            processedTyranoSprite = tyranoSprite;
         };
 
         // 트리케라톱스 이미지 전처리
         trikeratopsSprite.onload = function () {
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = trikeratopsSprite.naturalWidth;
-            tempCanvas.height = trikeratopsSprite.naturalHeight;
-            const tempCtx = tempCanvas.getContext('2d');
-
-            // 원본 이미지 그리기
-            tempCtx.drawImage(trikeratopsSprite, 0, 0);
-
-            // 이미지 데이터 가져오기
-            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-            const data = imageData.data;
-
-            // 공룡(녹색 계열)이 아닌 모든 픽셀을 투명하게 처리
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
-                const a = data[i + 3];
-
-                // 이미 투명한 픽셀은 그대로 유지
-                if (a < 10) continue;
-
-                // 녹색 계열인지 확인 (공룡)
-                const isGreen = (g > r + 20 && g > b + 20 && g > 50);
-
-                // 녹색이 아니면 투명하게
-                if (!isGreen) {
-                    data[i + 3] = 0; // 완전 투명
-                }
-            }
-
-            // 수정된 이미지 데이터 적용
-            tempCtx.putImageData(imageData, 0, 0);
-
-            // 새 이미지로 저장
-            processedTrikeratopsSprite = new Image();
-            processedTrikeratopsSprite.src = tempCanvas.toDataURL();
+            // 전처리 없이 원본 이미지 사용
+            processedTrikeratopsSprite = trikeratopsSprite;
         };
 
 
